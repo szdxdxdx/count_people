@@ -1,0 +1,15 @@
+
+# IDE 相关
+/.idea
+
+# python 3.8 虚拟环境
+/venv
+
+# hadoop 和 spark 环境
+/env
+
+# 项目运行时产生的数据
+/data
+
+# 呃
+/tmp

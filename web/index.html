@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <title>人数统计</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+    }
+
+    img[src="error"] {
+      opacity: 0;
+    }
+
+    /* -- 大块区域布局 -- */
+
+    .container {
+      height: 100vh;
+      width: max(1000px, 100vw);
+      margin: auto;
+      background-color: red;
+
+      display: grid;
+      grid-template-areas: "img_list_area img_view_area detail_panel_area";
+      grid-template-columns:
+        180px 1fr 300px;
+    }
+
+    .img_list_area {
+      grid-area: img_list_area;
+      background-color: #111;
+    }
+
+    .img_view_area {
+      grid-area: img_view_area;
+      background-color: #111;
+    }
+
+    .detail_panel_area {
+      grid-area: detail_panel_area;
+      background-color: #1e1e1e;
+    }
+
+    /* -- 图片列表 -- */
+
+    .img_list_area {
+      overflow-y: scroll;
+    }
+
+    .img_list_area::-webkit-scrollbar {
+      width: 0;
+    }
+
+    .img_list {
+      padding: 10px;
+      width: fit-content;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .img_list-item:not(:last-child) {
+      margin-bottom: 10px;
+    }
+
+    .img_list-item>img {
+      display: block;
+      width: 100%;
+      object-fit: cover;
+      cursor: pointer;
+      outline: 1px solid #999;
+    }
+
+    .img_list-item>img:hover {
+      outline: 2px solid #fff;
+    }
+
+    /* -- 选中图片 -- */
+
+    .img_view_area {
+      overflow: hidden;
+      padding: 10px;
+      padding-left: 0;
+
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .img_view_area>img {
+      width: fit-content;
+      height: fit-content;
+      max-height: 100%;
+      max-width: 100%;
+      display: block;
+      object-fit: contain;
+      border: 1px solid #fff;
+      box-sizing: border-box;
+    }
+
+    /* -- 详情面板 -- */
+
+    /* 面板项基本样式 */
+
+    .detail_panel_area {
+      overflow-y: scroll;
+    }
+
+    .detail_panel_area::-webkit-scrollbar {
+      width: 0;
+    }
+
+    .detail_panel_item {
+      list-style: none;
+      margin: 10px;
+      padding: 5px;
+      background-color: #222;
+      color: #ededed;
+      outline: 1px solid #555;
+    }
+
+    .detail_panel_item:hover {
+      outline: 1px solid #999;
+      cursor: pointer;
+    }
+
+    .detail_panel_item>h1 {
+      font-size: 20px;
+      margin-bottom: 10px;
+      font-weight: normal;
+    }
+
+    /* 当前任务 */
+
+    .current_task_info {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .current_task_info th,
+    .current_task_info td {
+      font-weight: normal;
+      padding: 2px 5px;
+    }
+
+    .count_result_info {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+    }
+
+    .count_result_info th {
+      font-weight: normal;
+      text-align: center;
+      font-size: 16px;
+    }
+
+    .count_result_info td {
+      font-size: 30px;
+      text-align: center;
+    }
+
+    .count_result_info td:not(:last-child) span {
+      display: block;
+      margin: 15px 0;
+      width: 100%;
+      border-right: 1px solid #666;
+    }
+
+    /* 控制区域 */
+
+    .control_area {
+      padding-bottom: 5px;
+    }
+
+    .control_area button {
+      outline: none;
+      border: none;
+      padding: 5px 20px;
+      font-size: 15px;
+      letter-spacing: 1px;
+      border-radius: 4px;
+      color: #000;
+      background-color: #ddd;
+      cursor: pointer;
+    }
+
+    .control_area button:hover:not(:active) {
+      outline: 1.5px solid #fff;
+    }
+  </style>
+  
+  <script src="./vue2.js"></script>
+</head>
+
+<body>
+  <div id="main" class="container">
+
+    <!-- 图片列表 -->
+    <div class="img_list_area">
+      <div class="img_list">
+        <div v-for="img_name, idx in process_detail.imgs" class="img_list-item">
+          <img :src="`${baseUrl}/img/c/${process_detail.task_name}/${img_name}`"
+          @click="select_img(idx)">
+        </div>
+      </div>
+    </div>
+
+    <!-- 选中图片 -->
+    <div class="img_view_area">
+      <img :src="`${baseUrl}/img/p/${process_detail.task_name}/${process_detail.imgs[selected_img.idx]}`">
+    </div>
+
+    <!-- 详情面板 -->
+    <div class="detail_panel_area">
+      <div class="detail_panel">
+        <ul>
+          <!-- 当前任务信息 -->
+          <li class="detail_panel_item">
+            <h1>当前任务</h1>
+            <table class="current_task_info">
+              <tr><th>任务名</th><td>{{ process_detail.task_name }}</td></tr>
+              <tr><th>开始时间</th><td>{{ process_detail.start_time }}</td></tr>
+              <tr><th>结束时间</th><td>{{ process_detail.end_time }}</td></tr>
+            </table>
+          </li>
+          <!-- 整体识别结果 -->
+          <li class="detail_panel_item">
+            <h1>整体识别结果</h1>
+            <table class="count_result_info">
+              <tr><th>总人数</th><th>安全帽数量</th><th>未戴安全帽</th></tr>
+              <tr>
+                <td><span>{{ process_detail.count.person }}</span></td>
+                <td><span>{{ process_detail.count.safety_helmet }}</span></td>
+                <td><span>{{ process_detail.count.no_safety_helmet }}</span></td>
+              </tr>
+            </table>
+          </li>
+          <!-- 当前图片识别结果 -->
+          <li class="detail_panel_item">
+            <h1>当前图片识别结果</h1>
+            <table class="count_result_info">
+              <tr><th>人数</th><th>安全帽数量</th><th>未戴安全帽</th></tr>
+              <tr>
+                <td><span>{{ selected_img.count.person }}</span></td>
+                <td><span>{{ selected_img.count.safety_helmet }}</span></td>
+                <td><span>{{ selected_img.count.no_safety_helmet }}</span></td>
+              </tr>
+            </table>
+          </li>
+          <!-- 新一轮任务 -->
+          <li class="detail_panel_item">
+            <h1>任务执行</h1>
+            <div class="control_area">
+              <button v-if="processing" disabled>统计中，请等待</button>
+              <button @click="new_task()" v-else>执行新一轮统计</button>
+            </div>
+          </li>
+        </ul>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    
+  </script>
+
+  <script>
+    new Vue({
+      el: "#main",
+    
+      data() {
+        return {
+          baseUrl: "http://127.0.0.1:5000",
+          selected_img: {
+            idx: 0,
+            count: {
+              person: 0,
+              safety_helmet: 0,
+              no_safety_helmet: 0
+            }
+          },
+          processing: false,
+          process_detail: {
+            task_name: "",
+            start_time: "",
+            end_time: "",
+            imgs: [],
+            count: {
+              person: 0,
+              safety_helmet: 0,
+              no_safety_helmet: 0
+            }
+          },
+        }
+      },
+
+      mounted() {
+        this.http_req("/history/example")
+        .then(resp => {
+          this.set_data_from_resp(resp);
+          this.select_img(0);
+        })
+        .catch(err => { console.log(err); })
+      },
+
+      methods: {
+
+        http_req(url) {
+          return new Promise((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+            xhr.open("GET", `${this.baseUrl}${url}`);
+            xhr.onload = () => {
+              if (xhr.status === 200) {
+                resolve(JSON.parse(xhr.response));
+              } else {
+                reject(xhr.status);
+              }
+            };
+            xhr.send();
+          });
+        },
+    
+        select_img(idx) {
+          this.selected_img.idx = idx
+          this.http_req(`/txt/p/${this.process_detail.task_name}/${this.process_detail.imgs[idx]}`)
+          .then(resp => {
+            this.selected_img.count.person = resp["person"]
+            this.selected_img.count.safety_helmet = resp["safety_helmet"]
+            this.selected_img.count.no_safety_helmet = resp["no_safety_helmet"]
+          })
+          .catch(err => { console.log(err); })
+        },
+
+        set_data_from_resp(resp) {
+          const whole_process_detail = resp["process_detail"][0]["whole_process"];
+          const collected_data = resp["process_detail"][1]["data_collection"];
+          const result_analysis = resp["process_detail"][3]["result_analysis"];
+
+          this.process_detail.task_name = whole_process_detail["task_name"]
+          this.process_detail.start_time = whole_process_detail["start_time"]
+          this.process_detail.end_time = whole_process_detail["end_time"]
+          this.process_detail.imgs = collected_data["images"]
+
+          this.process_detail.count.person = result_analysis["count"]["person"]
+          this.process_detail.count.safety_helmet = result_analysis["count"]["safety_helmet"]
+          this.process_detail.count.no_safety_helmet = result_analysis["count"]["no_safety_helmet"]
+        },
+      
+        new_task() {
+          this.processing = true;
+          this.http_req("/do")
+          .then(resp => {
+            console.log(resp);
+            this.set_data_from_resp(resp);
+            this.select_img(0);
+            this.processing = false;
+          })
+          .catch(err => { console.log(err); })
+        }
+      }
+    });
+    </script>
+</body>
+
+</html>
